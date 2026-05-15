@@ -18,6 +18,7 @@ export interface ForecastMonth {
   cumulativeBalance: number;
   installmentsTotal: number;
   recurringTotal: number;
+  creditCardBillTotal: number;
   variableByCategory: Record<string, number>;
 }
 
@@ -27,7 +28,7 @@ export interface Commitment {
   description: string;
   amount: number;
   type: "income" | "expense";
-  source: "installment" | "recurring";
+  source: "installment" | "recurring" | "credit_card_bill";
   date: string;
   installmentInfo?: { number: number; total: number };
 }
@@ -100,7 +101,7 @@ export function useForecast(
       const [txRes, recRes, catRes, balRows] = await Promise.all([
         supabase
           .from("transactions")
-          .select("id, amount, description, type, date, category_id, installments, installment_number")
+          .select("id, amount, description, type, date, category_id, installments, installment_number, payment_method")
           .eq("user_id", user!.id)
           .gte("date", startStr)
           .order("date", { ascending: true }),
@@ -174,6 +175,18 @@ export function useForecast(
 
     const futureTx = transactions.filter((t) => t.date > todayStr);
 
+    // Credit-card single-purchase (1x) bills: any past credit_card expense
+    // gets shifted to the FOLLOWING month as a committed bill.
+    // Installments (>1x) are skipped here because each installment already
+    // has its own date that typically reflects the bill month.
+    const creditCardBills = transactions.filter(
+      (t) =>
+        t.payment_method === "credit_card" &&
+        t.type === "expense" &&
+        (!t.installments || t.installments <= 1) &&
+        t.date <= todayStr
+    );
+
     // Historical: last 3 months window, but divide by actual months covered (min 1)
     const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 3, 1);
     const threeMonthsAgoStr = toLocalISO(threeMonthsAgo);
@@ -198,6 +211,9 @@ export function useForecast(
     const categorySums: Record<string, { expense: number; income: number }> = {};
     recentTx.forEach((t) => {
       if (t.installments && t.installments > 1) return;
+      // Credit-card purchases are modeled as committed bills next month,
+      // so exclude them from the variable-expense average to avoid duplication.
+      if (t.payment_method === "credit_card") return;
       const sig = `${t.type}|${String(t.description || "").trim().toLowerCase()}|${t.category_id || "__nocat__"}|${Number(t.amount).toFixed(2)}`;
       if (recurringSignatures.has(sig)) return; // already counted as a committed recurring expense
       const catId = t.category_id || "__uncategorized__";
@@ -253,6 +269,7 @@ export function useForecast(
         estimatedVariableExpenses: 0, totalExpenses: 0,
         monthBalance: 0, cumulativeBalance: 0,
         installmentsTotal: 0, recurringTotal: 0,
+        creditCardBillTotal: 0,
         variableByCategory: {},
       });
     }
@@ -278,6 +295,27 @@ export function useForecast(
         type: t.type as "income" | "expense", source: "installment", date: t.date,
         installmentInfo: t.installments && t.installments > 1
           ? { number: t.installment_number || 1, total: t.installments } : undefined,
+      });
+    });
+
+    // Shift past credit-card 1x purchases to the following month as a bill.
+    creditCardBills.forEach((t) => {
+      const d = parseLocalDate(t.date);
+      const billDate = new Date(d.getFullYear(), d.getMonth() + 1, d.getDate());
+      const key = monthKey(billDate.getFullYear(), billDate.getMonth());
+      const bucket = monthMap.get(key);
+      if (!bucket) return;
+      const amt = Number(t.amount);
+      bucket.committedExpenses += amt;
+      bucket.creditCardBillTotal += amt;
+      commitments.push({
+        id: `cc-${t.id}`,
+        monthKey: key,
+        description: t.description,
+        amount: amt,
+        type: "expense",
+        source: "credit_card_bill",
+        date: toLocalISO(billDate),
       });
     });
 

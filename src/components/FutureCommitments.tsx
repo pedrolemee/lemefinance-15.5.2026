@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/formatters";
 import { formatDateBR } from "@/lib/dateUtils";
 import { Commitment, ForecastMonth } from "@/hooks/useForecast";
-import { CreditCard, Repeat } from "lucide-react";
+import { CreditCard, Repeat, Receipt } from "lucide-react";
 
 export function FutureCommitments({
   months,
@@ -47,10 +47,17 @@ export function FutureCommitments({
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           {c.source === "installment" ? (
                             <CreditCard className="h-3 w-3 shrink-0 text-primary" />
+                          ) : c.source === "credit_card_bill" ? (
+                            <Receipt className="h-3 w-3 shrink-0 text-primary" />
                           ) : (
                             <Repeat className="h-3 w-3 shrink-0 text-accent-foreground" />
                           )}
                           <span className="truncate">{c.description}</span>
+                          {c.source === "credit_card_bill" && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0">
+                              Fatura crédito
+                            </Badge>
+                          )}
                           {c.installmentInfo && (
                             <Badge variant="outline" className="text-[10px] px-1 py-0">
                               {c.installmentInfo.number}/{c.installmentInfo.total}

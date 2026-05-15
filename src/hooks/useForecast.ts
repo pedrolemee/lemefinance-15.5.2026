@@ -101,7 +101,7 @@ export function useForecast(
       const [txRes, recRes, catRes, balRows] = await Promise.all([
         supabase
           .from("transactions")
-          .select("id, amount, description, type, date, category_id, installments, installment_number")
+          .select("id, amount, description, type, date, category_id, installments, installment_number, payment_method")
           .eq("user_id", user!.id)
           .gte("date", startStr)
           .order("date", { ascending: true }),

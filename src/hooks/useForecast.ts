@@ -298,6 +298,27 @@ export function useForecast(
       });
     });
 
+    // Shift past credit-card 1x purchases to the following month as a bill.
+    creditCardBills.forEach((t) => {
+      const d = parseLocalDate(t.date);
+      const billDate = new Date(d.getFullYear(), d.getMonth() + 1, d.getDate());
+      const key = monthKey(billDate.getFullYear(), billDate.getMonth());
+      const bucket = monthMap.get(key);
+      if (!bucket) return;
+      const amt = Number(t.amount);
+      bucket.committedExpenses += amt;
+      bucket.creditCardBillTotal += amt;
+      commitments.push({
+        id: `cc-${t.id}`,
+        monthKey: key,
+        description: t.description,
+        amount: amt,
+        type: "expense",
+        source: "credit_card_bill",
+        date: toLocalISO(billDate),
+      });
+    });
+
     recurring.forEach((r: any) => {
       const startDate = parseLocalDate(r.start_date);
       const endDate = r.end_date ? parseLocalDate(r.end_date) : null;

@@ -175,6 +175,18 @@ export function useForecast(
 
     const futureTx = transactions.filter((t) => t.date > todayStr);
 
+    // Credit-card single-purchase (1x) bills: any past credit_card expense
+    // gets shifted to the FOLLOWING month as a committed bill.
+    // Installments (>1x) are skipped here because each installment already
+    // has its own date that typically reflects the bill month.
+    const creditCardBills = transactions.filter(
+      (t) =>
+        t.payment_method === "credit_card" &&
+        t.type === "expense" &&
+        (!t.installments || t.installments <= 1) &&
+        t.date <= todayStr
+    );
+
     // Historical: last 3 months window, but divide by actual months covered (min 1)
     const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 3, 1);
     const threeMonthsAgoStr = toLocalISO(threeMonthsAgo);
@@ -199,6 +211,9 @@ export function useForecast(
     const categorySums: Record<string, { expense: number; income: number }> = {};
     recentTx.forEach((t) => {
       if (t.installments && t.installments > 1) return;
+      // Credit-card purchases are modeled as committed bills next month,
+      // so exclude them from the variable-expense average to avoid duplication.
+      if (t.payment_method === "credit_card") return;
       const sig = `${t.type}|${String(t.description || "").trim().toLowerCase()}|${t.category_id || "__nocat__"}|${Number(t.amount).toFixed(2)}`;
       if (recurringSignatures.has(sig)) return; // already counted as a committed recurring expense
       const catId = t.category_id || "__uncategorized__";

@@ -18,6 +18,7 @@ export interface ForecastMonth {
   cumulativeBalance: number;
   installmentsTotal: number;
   recurringTotal: number;
+  creditCardBillTotal: number;
   variableByCategory: Record<string, number>;
 }
 
@@ -27,7 +28,7 @@ export interface Commitment {
   description: string;
   amount: number;
   type: "income" | "expense";
-  source: "installment" | "recurring";
+  source: "installment" | "recurring" | "credit_card_bill";
   date: string;
   installmentInfo?: { number: number; total: number };
 }

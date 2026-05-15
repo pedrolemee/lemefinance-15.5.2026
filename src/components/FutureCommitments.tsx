@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/formatters";
 import { formatDateBR } from "@/lib/dateUtils";
 import { Commitment, ForecastMonth } from "@/hooks/useForecast";
-import { CreditCard, Repeat } from "lucide-react";
+import { CreditCard, Repeat, Receipt } from "lucide-react";
 
 export function FutureCommitments({
   months,

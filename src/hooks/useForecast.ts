@@ -269,6 +269,7 @@ export function useForecast(
         estimatedVariableExpenses: 0, totalExpenses: 0,
         monthBalance: 0, cumulativeBalance: 0,
         installmentsTotal: 0, recurringTotal: 0,
+        creditCardBillTotal: 0,
         variableByCategory: {},
       });
     }
